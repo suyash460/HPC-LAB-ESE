@@ -1,0 +1,165 @@
+
+1PS
+a)Single
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <omp.h>
+ 
+
+int main(int argc, char* argv[])
+{
+    // Use 4 threads when creating OpenMP parallel regions
+    omp_set_num_threads(4);
+ 
+    // Create the parallel region
+    #pragma omp parallel
+    {
+        printf("[Thread %d] Every thread executes this printf.\n", omp_get_thread_num());
+ 
+       
+ 
+        #pragma omp single
+        {
+            printf("[Thread %d] Only a single thread executes this printf, I happen to be the one picked.\n", omp_get_thread_num());
+        }
+    }
+ 
+    return EXIT_SUCCESS;
+}
+B) ORDERED
+// omp_ordered.cpp
+// compile with: /openmp
+#include <stdio.h>
+#include <omp.h>
+
+static float a[1000], b[1000], c[1000];
+
+void test(int first, int last)
+{
+    #pragma omp for schedule(static) ordered
+    for (int i = first; i <= last; ++i) {
+        // Do something here.
+        if (i % 2)
+        {
+            #pragma omp ordered
+            printf("test() iteration %d\n", i);
+        }
+    }
+}
+
+void test2(int iter)
+{
+    #pragma omp ordered
+    printf("test2() iteration %d\n", iter);
+}
+
+int main( )
+{
+    int i;
+    #pragma omp parallel
+    {
+        test(1, 8);
+        #pragma omp for ordered
+        for (i = 0 ; i < 5 ; i++)
+            test2(i);
+    }
+}
+c) BARRIER
+#include <stdio.h>
+#include <omp.h>
+
+int main(int argc, char** argv){
+    int i;
+    int thread_id;
+
+    #pragma omp parallel
+    {
+        thread_id = omp_get_thread_num();
+
+        for( int i = 0; i < omp_get_max_threads(); i++){
+            if(i == omp_get_thread_num()){
+                printf(“Hello from process: %d”, thread_id);
+            }
+            #pragma omp barrier
+        }
+    }
+    return 0;
+}
+2nd PS
+#include <mpi.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char** argv)
+{
+    float array []= { 1,2,3,4,5,6,7,8,9,10 };
+    int tag = 1;
+    int size;
+    int rank;
+    MPI_Status status;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0)
+    {
+         // Array of 10 elements
+        if (!array) // error checking
+        {
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        MPI_Send(&array, 10, MPI_INT, 1, tag, MPI_COMM_WORLD);
+    }
+    if (rank == 1)
+    {
+        MPI_Recv(&array, 10, MPI_INT, 0, tag, MPI_COMM_WORLD, &status);
+        printf("Float Array Received from Process 0 to 1");
+        // more code here
+    }
+    MPI_Finalize();
+}
+
+3RD PS
+
+%%cu
+
+#include<stdio.h>
+
+__global__ void Factorial(int *gpu_num,long int *gpu_res)
+{
+  int i;
+  *gpu_res=1;
+  for(i=1;i<=*gpu_num;i++)
+  {
+    *gpu_res = *gpu_res * i;      
+  }
+}
+
+int main()
+{
+  int Number=5;  //to store number on the cpu/host machine
+  int *dev_number;
+  long int *res, result; //store result 
+  system("clear"); //to clear the screen
+  
+  
+  //to allocate memory for a number on the GPU/Device
+  cudaMalloc((void**)&dev_number,sizeof(int));
+  cudaMalloc((void**)&res,sizeof(long int));
+  
+  //copy number to the GPU/Device memory
+  cudaMemcpy(dev_number,&Number,sizeof(int),cudaMemcpyHostToDevice);
+ 
+  //call square function which will execute parallely on GPU
+  Factorial<<<1,1>>>(dev_number,res);
+
+  //copy result back from device/GPU back to CPU/Host
+  cudaMemcpy(&result,res,sizeof(long int),cudaMemcpyDeviceToHost);
+
+  //display result on the screen
+  printf("\n\t Factorial of number %d is %ld \n",Number,result); 
+ 
+  //deallocate GPU/Device memory
+  return 0; 
+}
